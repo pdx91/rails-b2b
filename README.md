@@ -9,13 +9,13 @@ Rails application template for B2B SaaS foundations:
 ## Use directly from local path
 
 ```bash
-rails new my_app -d postgresql -m /Users/pd/Library/CloudStorage/Dropbox/Work/rails-b2b/template.rb
+rails new my_app -d postgresql --skip-javascript --skip-hotwire -m /Users/pd/Library/CloudStorage/Dropbox/Work/rails-b2b/template.rb
 ```
 
 ## Use from GitHub
 
 ```bash
-rails new my_app -d postgresql -m https://raw.githubusercontent.com/<org-or-user>/rails-b2b/main/template.rb
+rails new my_app -d postgresql --skip-javascript --skip-hotwire -m https://raw.githubusercontent.com/<org-or-user>/rails-b2b/main/template.rb
 ```
 
 ## Initialize this template repo with git
@@ -32,3 +32,9 @@ Then create/push the remote and use the raw `template.rb` URL.
 ## One-command helper
 
 `bin/new` wraps `rails new ... -m template.rb` for local usage.
+
+## Notes
+
+- `--skip-javascript --skip-hotwire` is intentional to avoid Turbo defaults.
+- The template then installs Vite + React + Inertia explicitly.
+- Solid Queue/Cache/Cable are explicitly configured to use SQLite databases (`queue`, `cache`, `cable`).

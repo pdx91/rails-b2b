@@ -5,11 +5,8 @@ gem "vite_rails", "~> 3.0"
 gem "nanoid", require: false
 gem "name_of_person"
 
-append_to_file "Gemfile", <<~RUBY
-  group :development, :test do
-    gem "rubocop-rails-omakase", require: false
-  end
-RUBY
+gsub_file "Gemfile", /^gem ["']turbo-rails["'].*\n/, ""
+gsub_file "Gemfile", /^gem ["']stimulus-rails["'].*\n/, ""
 
 def migration_number(offset)
   @migration_start ||= Time.now.utc.strftime("%Y%m%d%H%M%S").to_i
@@ -66,6 +63,10 @@ after_bundle do
   gsub_file "config/application.rb", "class Application < Rails::Application", <<~RUBY.chomp
     class Application < Rails::Application
       config.aws = config_for(:aws)
+      config.active_job.queue_adapter = :solid_queue
+      config.solid_queue.connects_to = { database: { writing: :queue } }
+      config.solid_cache.connects_to = { database: { writing: :cache } }
+      config.solid_cable.connects_to = { database: { writing: :cable } }
   RUBY
 
   append_to_file "config/environments/development.rb", <<~RUBY
@@ -816,13 +817,13 @@ after_bundle do
     ## Usage (local template)
 
     ```bash
-    rails new my_app -d postgresql -m /path/to/rails-b2b/template.rb
+    rails new my_app -d postgresql --skip-javascript --skip-hotwire -m /path/to/rails-b2b/template.rb
     ```
 
     ## Usage (from git)
 
     ```bash
-    rails new my_app -d postgresql -m https://raw.githubusercontent.com/<you>/rails-b2b/main/template.rb
+    rails new my_app -d postgresql --skip-javascript --skip-hotwire -m https://raw.githubusercontent.com/<you>/rails-b2b/main/template.rb
     ```
 
     ## AWS SES setup
@@ -853,7 +854,7 @@ after_bundle do
     APP_NAME="${1:-demo_b2b}"
     TEMPLATE_PATH="${2:-#{File.expand_path("template.rb", destination_root)}}"
 
-    rails new "$APP_NAME" -d postgresql -m "$TEMPLATE_PATH"
+    rails new "$APP_NAME" -d postgresql --skip-javascript --skip-hotwire -m "$TEMPLATE_PATH"
   BASH
   run "chmod +x bin/new"
 

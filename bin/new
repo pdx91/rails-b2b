@@ -4,4 +4,4 @@ set -euo pipefail
 APP_NAME="${1:-demo_b2b}"
 TEMPLATE_PATH="/Users/pd/Library/CloudStorage/Dropbox/Work/rails-b2b/template.rb"
 
-rails new "$APP_NAME" -d postgresql -m "$TEMPLATE_PATH"
+rails new "$APP_NAME" -d postgresql --skip-javascript --skip-hotwire -m "$TEMPLATE_PATH"
