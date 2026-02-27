@@ -91,7 +91,6 @@ after_bundle do
       config.active_job.queue_adapter = :solid_queue
       config.solid_queue.connects_to = { database: { writing: :queue } }
       config.solid_cache.connects_to = { database: { writing: :cache } }
-      config.solid_cable.connects_to = { database: { writing: :cable } }
   RUBY
 
   append_to_file "config/environments/development.rb", <<~RUBY
