@@ -1,7 +1,6 @@
 # frozen_string_literal: true
 
 gem "inertia_rails"
-gem "vite_rails", "~> 3.0"
 gem "nanoid", require: false
 gem "name_of_person"
 
@@ -14,10 +13,36 @@ def migration_number(offset)
 end
 
 after_bundle do
-  rails_command "vite:install"
+  append_to_file "Gemfile", <<~RUBY
+    gem "vite_rails", "~> 3.0"
+  RUBY
+  run "bundle install"
 
   run "npm add react react-dom @inertiajs/react"
   run "npm add -D typescript @types/react @types/react-dom @vitejs/plugin-react @tailwindcss/vite"
+
+  file "config/vite.json", <<~JSON
+    {
+      "all": {
+        "sourceCodeDir": "app/frontend",
+        "watchAdditionalPaths": []
+      },
+      "development": {
+        "autoBuild": true,
+        "publicOutputDir": "vite-dev",
+        "port": 3036
+      },
+      "test": {
+        "autoBuild": true,
+        "publicOutputDir": "vite-test",
+        "port": 3037
+      },
+      "production": {
+        "autoBuild": false,
+        "publicOutputDir": "vite"
+      }
+    }
+  JSON
 
   file "vite.config.ts", <<~TS
     import react from "@vitejs/plugin-react"
@@ -94,6 +119,7 @@ after_bundle do
     }
   RUBY
 
+  remove_file "config/routes.rb"
   file "config/routes.rb", <<~RUBY
     Rails.application.routes.draw do
       resource :session, only: %i[new create destroy] do
@@ -202,7 +228,7 @@ after_bundle do
       def assign_slug
         return if slug.present? || name.blank?
 
-        self.slug = "#{name.parameterize}-#{SecureRandom.hex(4)}"
+        self.slug = "\#{name.parameterize}-\#{SecureRandom.hex(4)}"
       end
     end
   RUBY
@@ -346,7 +372,7 @@ after_bundle do
         email_address = params.require(:email_address).to_s.strip.downcase
         user = User.find_or_create_by!(email_address:)
         user.send_magic_link_later
-        redirect_to session_magic_link_path, notice: "We sent a code to #{email_address}."
+        redirect_to session_magic_link_path, notice: "We sent a code to \#{email_address}."
       end
 
       def destroy
@@ -429,7 +455,7 @@ after_bundle do
         @magic_link = magic_link
         @user = @magic_link.user
 
-        mail to: @user.email_address, subject: "Your sign-in code is #{@magic_link.code}"
+        mail to: @user.email_address, subject: "Your sign-in code is \#{@magic_link.code}"
       end
     end
   RUBY
