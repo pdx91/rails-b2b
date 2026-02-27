@@ -508,10 +508,10 @@ after_bundle do
     void createInertiaApp({
       resolve: (name) => {
         const pages = import.meta.glob<{ default: ResolvedComponent }>("../pages/**/*.tsx", { eager: true })
-        const page = pages[`../pages/${name}.tsx`]
+        const page = pages[`../pages/\${name}.tsx`]
 
         if (!page) {
-          throw new Error(`Missing Inertia page component: ${name}.tsx`)
+          throw new Error(`Missing Inertia page component: \${name}.tsx`)
         }
 
         if (name.startsWith("auth/") || name.startsWith("onboarding/")) {
