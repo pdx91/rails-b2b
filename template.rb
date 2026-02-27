@@ -93,7 +93,7 @@ after_bundle do
       config.solid_cache.connects_to = { database: { writing: :cache } }
   RUBY
 
-  append_to_file "config/environments/development.rb", <<~RUBY
+  inject_into_file "config/environments/development.rb", <<~RUBY, before: "\nend\n"
 
     config.action_mailer.delivery_method = :smtp
     config.action_mailer.smtp_settings = {
@@ -105,7 +105,7 @@ after_bundle do
     config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
   RUBY
 
-  append_to_file "config/environments/production.rb", <<~RUBY
+  inject_into_file "config/environments/production.rb", <<~RUBY, before: "\nend\n"
 
     config.action_mailer.delivery_method = :smtp
     config.action_mailer.smtp_settings = {
@@ -252,6 +252,7 @@ after_bundle do
     end
   RUBY
 
+  remove_file "app/controllers/application_controller.rb"
   file "app/controllers/application_controller.rb", <<~RUBY
     class ApplicationController < ActionController::Base
       include Authentication
@@ -476,6 +477,7 @@ after_bundle do
     <p>This code will work for <%= distance_of_time_in_words(MagicLink::EXPIRATION_TIME) %>.</p>
   ERB
 
+  remove_file "app/views/layouts/application.html.erb"
   file "app/views/layouts/application.html.erb", <<~ERB
     <!DOCTYPE html>
     <html>
@@ -830,6 +832,7 @@ after_bundle do
     end
   RUBY
 
+  remove_file "README.md"
   file "README.md", <<~MD
     # Rails B2B Template
 
@@ -883,6 +886,5 @@ after_bundle do
   BASH
   run "chmod +x bin/new"
 
-  rails_command "db:migrate"
-  rails_command "test"
+  rails_command "db:prepare"
 end
