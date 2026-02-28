@@ -739,8 +739,8 @@ after_bundle do
         throw error
       } else {
         console.error(
-          "Missing root element.\n\n" +
-          "If you see this error, it probably means you loaded Inertia.js on non-Inertia pages.\n" +
+          "Missing root element.\\n\\n" +
+          "If you see this error, it probably means you loaded Inertia.js on non-Inertia pages.\\n" +
           'Consider moving <%= vite_typescript_tag "inertia.tsx" %> to the Inertia-specific layout instead.',
         )
       }
