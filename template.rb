@@ -10,6 +10,7 @@ after_bundle do
   gsub_file "Gemfile", /^gem ["']stimulus-rails["'].*\n/, ""
 
   run "printf 'y\ny\nreact\ny\n' | bin/rails generate inertia:install --skip-example"
+  run "npm add class-variance-authority clsx tailwind-merge radix-ui tw-animate-css @fontsource/inter"
 
   file "config/aws.yml", <<~YAML
     shared: &shared
@@ -495,6 +496,7 @@ after_bundle do
         <%= csrf_meta_tags %>
         <%= csp_meta_tag %>
         <%= stylesheet_link_tag :app %>
+        <%= vite_stylesheet_tag "application" %>
         <%= vite_react_refresh_tag %>
         <%= vite_client_tag %>
         <%= vite_typescript_tag "inertia.tsx" %>
@@ -506,16 +508,152 @@ after_bundle do
     </html>
   ERB
 
+  file "app/frontend/entrypoints/application.css", <<~CSS
+    @import "tailwindcss";
+    @import "tw-animate-css";
+    @import "@fontsource/inter";
+
+    :root {
+      --background: oklch(1 0 0);
+      --foreground: oklch(0.147 0.004 49.25);
+      --card: oklch(1 0 0);
+      --card-foreground: oklch(0.147 0.004 49.25);
+      --primary: oklch(0.216 0.006 56.043);
+      --primary-foreground: oklch(0.985 0.001 106.423);
+      --muted: oklch(0.97 0.001 106.424);
+      --muted-foreground: oklch(0.553 0.013 58.071);
+      --destructive: oklch(0.577 0.245 27.325);
+      --border: oklch(0.923 0.003 48.717);
+      --input: oklch(0.923 0.003 48.717);
+      --ring: oklch(0.709 0.01 56.259);
+      --radius: 0.625rem;
+    }
+
+    @theme inline {
+      --font-sans: "Inter", sans-serif;
+      --color-background: var(--background);
+      --color-foreground: var(--foreground);
+      --color-card: var(--card);
+      --color-card-foreground: var(--card-foreground);
+      --color-primary: var(--primary);
+      --color-primary-foreground: var(--primary-foreground);
+      --color-muted: var(--muted);
+      --color-muted-foreground: var(--muted-foreground);
+      --color-destructive: var(--destructive);
+      --color-border: var(--border);
+      --color-input: var(--input);
+      --color-ring: var(--ring);
+      --radius-md: calc(var(--radius) - 2px);
+      --radius-lg: var(--radius);
+    }
+
+    @layer base {
+      * {
+        @apply border-border outline-ring/50;
+      }
+
+      body {
+        @apply font-sans bg-background text-foreground;
+      }
+
+      a {
+        @apply text-primary no-underline hover:underline;
+      }
+    }
+  CSS
+
+  file "app/frontend/lib/utils.ts", <<~TS
+    import { clsx, type ClassValue } from "clsx"
+    import { twMerge } from "tailwind-merge"
+
+    export function cn(...inputs: ClassValue[]) {
+      return twMerge(clsx(inputs))
+    }
+  TS
+
+  file "app/frontend/components/ui/button.tsx", <<~TSX
+    import * as React from "react"
+    import { cva, type VariantProps } from "class-variance-authority"
+
+    import { cn } from "../../lib/utils"
+
+    const buttonVariants = cva(
+      "inline-flex items-center justify-center whitespace-nowrap rounded-lg text-sm font-medium transition-all cursor-pointer disabled:pointer-events-none disabled:opacity-50 outline-none",
+      {
+        variants: {
+          variant: {
+            default: "bg-primary text-primary-foreground hover:bg-primary/90",
+            outline: "border border-border bg-background hover:bg-muted",
+          },
+          size: {
+            default: "h-10 px-4",
+            sm: "h-9 px-3",
+          },
+        },
+        defaultVariants: {
+          variant: "default",
+          size: "default",
+        },
+      }
+    )
+
+    function Button({ className, variant, size, ...props }: React.ComponentProps<"button"> & VariantProps<typeof buttonVariants>) {
+      return <button className={cn(buttonVariants({ variant, size, className }))} {...props} />
+    }
+
+    export { Button }
+  TSX
+
+  file "app/frontend/components/ui/input.tsx", <<~TSX
+    import * as React from "react"
+
+    import { cn } from "../../lib/utils"
+
+    function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+      return (
+        <input
+          type={type}
+          className={cn(
+            "h-10 w-full rounded-lg border border-input bg-transparent px-3 py-2 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50",
+            className
+          )}
+          {...props}
+        />
+      )
+    }
+
+    export { Input }
+  TSX
+
+  file "app/frontend/components/ui/label.tsx", <<~TSX
+    import * as React from "react"
+
+    import { cn } from "../../lib/utils"
+
+    function Label({ className, ...props }: React.ComponentProps<"label">) {
+      return <label className={cn("text-sm leading-none font-medium", className)} {...props} />
+    }
+
+    export { Label }
+  TSX
+
   file "app/frontend/layouts/auth-layout.tsx", <<~TSX
     import type { ReactNode } from "react"
+    import { Link } from "@inertiajs/react"
 
     type Props = { children: ReactNode }
 
     export function AuthLayout({ children }: Props) {
       return (
-        <div style={{ maxWidth: "640px", margin: "40px auto", fontFamily: "sans-serif" }}>
-          <h2>Rails B2B</h2>
-          {children}
+        <div className="min-h-svh bg-background text-foreground">
+          <nav className="border-b border-border">
+            <div className="mx-auto flex h-16 max-w-5xl items-center px-4">
+              <Link href="/" className="text-lg font-semibold tracking-tight no-underline">
+                Playbook
+              </Link>
+            </div>
+          </nav>
+          <main className="mx-auto w-full max-w-5xl px-4 py-10">{children}</main>
         </div>
       )
     }
@@ -532,10 +670,10 @@ after_bundle do
       const { auth } = usePage<SharedProps>().props
 
       return (
-        <div style={{ maxWidth: "840px", margin: "40px auto", fontFamily: "sans-serif" }}>
-          <header style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
-            <strong>{auth.organization?.name || "Dashboard"}</strong>
-            <Link href="/session" method="delete" as="button">Sign out</Link>
+        <div className="mx-auto w-full max-w-5xl px-4 py-8">
+          <header className="mb-6 flex items-center justify-between border-b border-border pb-4">
+            <strong className="text-lg">{auth.organization?.name || "Dashboard"}</strong>
+            <Link href="/session" method="delete" as="button" className="text-sm">Sign out</Link>
           </header>
           {children}
         </div>
@@ -570,34 +708,48 @@ after_bundle do
   TS
 
   file "app/frontend/pages/auth/login.tsx", <<~TSX
-    import { useForm } from "@inertiajs/react"
+    import { Link, useForm } from "@inertiajs/react"
+    import { Button } from "../../components/ui/button"
+    import { Input } from "../../components/ui/input"
+    import { Label } from "../../components/ui/label"
 
     export default function LoginPage() {
       const form = useForm({ email_address: "" })
 
       return (
-        <section>
-          <h1>Sign in</h1>
-          <p>Enter your work email. We will send you a one-time code.</p>
+        <section className="mx-auto w-full max-w-md space-y-8 py-6">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold">Sign in</h1>
+            <p className="text-sm text-muted-foreground">
+              New here? <Link href="/signup/new">Create an account</Link>
+            </p>
+          </div>
 
           <form
             onSubmit={(event) => {
               event.preventDefault()
               form.post("/session")
             }}
+            className="space-y-4"
           >
-            <input
-              type="email"
-              name="email_address"
-              required
-              autoFocus
-              placeholder="you@example.com"
-              value={form.data.email_address}
-              onChange={(event) => form.setData("email_address", event.target.value)}
-            />
-            <button type="submit" disabled={form.processing}>
-              {form.processing ? "Sending..." : "Send Code"}
-            </button>
+            <div className="space-y-2">
+              <Label htmlFor="email_address">Email</Label>
+              <Input
+                id="email_address"
+                type="email"
+                name="email_address"
+                required
+                autoFocus
+                placeholder="you@example.com"
+                value={form.data.email_address}
+                onChange={(event) => form.setData("email_address", event.target.value)}
+                disabled={form.processing}
+              />
+            </div>
+
+            <Button type="submit" className="w-full" disabled={form.processing}>
+              {form.processing ? "Sending..." : "Send One-Time Code"}
+            </Button>
           </form>
         </section>
       )
@@ -606,6 +758,9 @@ after_bundle do
 
   file "app/frontend/pages/auth/signup.tsx", <<~TSX
     import { Link, useForm } from "@inertiajs/react"
+    import { Button } from "../../components/ui/button"
+    import { Input } from "../../components/ui/input"
+    import { Label } from "../../components/ui/label"
 
     type Props = {
       errors?: Record<string, string[]>
@@ -617,11 +772,13 @@ after_bundle do
       const form = useForm({ email_address, name })
 
       return (
-        <section>
-          <h1>Create account</h1>
-          <p>
-            Already have an account? <Link href="/session/new">Sign in</Link>
-          </p>
+        <section className="mx-auto w-full max-w-md space-y-8 py-6">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold">Create account</h1>
+            <p className="text-sm text-muted-foreground">
+              Already have an account? <Link href="/session/new">Sign in</Link>
+            </p>
+          </div>
 
           <form
             onSubmit={(event) => {
@@ -629,30 +786,37 @@ after_bundle do
               form.transform((data) => ({ signup: data }))
               form.post("/signup")
             }}
+            className="space-y-4"
           >
-            <input
-              type="text"
-              name="name"
-              required
-              placeholder="Name"
-              value={form.data.name}
-              onChange={(event) => form.setData("name", event.target.value)}
-            />
-            {errors.name ? <p>{errors.name.join(", ")}</p> : null}
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                type="text"
+                name="name"
+                required
+                value={form.data.name}
+                onChange={(event) => form.setData("name", event.target.value)}
+              />
+              {errors.name ? <p className="text-sm text-destructive">{errors.name.join(", ")}</p> : null}
+            </div>
 
-            <input
-              type="email"
-              name="email_address"
-              required
-              placeholder="you@example.com"
-              value={form.data.email_address}
-              onChange={(event) => form.setData("email_address", event.target.value)}
-            />
-            {errors.email_address ? <p>{errors.email_address.join(", ")}</p> : null}
+            <div className="space-y-2">
+              <Label htmlFor="email_address">Email</Label>
+              <Input
+                id="email_address"
+                type="email"
+                name="email_address"
+                required
+                value={form.data.email_address}
+                onChange={(event) => form.setData("email_address", event.target.value)}
+              />
+              {errors.email_address ? <p className="text-sm text-destructive">{errors.email_address.join(", ")}</p> : null}
+            </div>
 
-            <button type="submit" disabled={form.processing}>
+            <Button type="submit" className="w-full" disabled={form.processing}>
               {form.processing ? "Creating..." : "Create account"}
-            </button>
+            </Button>
           </form>
         </section>
       )
@@ -661,6 +825,9 @@ after_bundle do
 
   file "app/frontend/pages/auth/verify.tsx", <<~TSX
     import { useForm } from "@inertiajs/react"
+    import { Button } from "../../components/ui/button"
+    import { Input } from "../../components/ui/input"
+    import { Label } from "../../components/ui/label"
 
     type Props = {
       code_length: number
@@ -672,32 +839,41 @@ after_bundle do
       const form = useForm({ code: "" })
 
       return (
-        <section>
-          <h1>Check your email</h1>
-          <p>Enter the {code_length}-character code.</p>
+        <section className="mx-auto w-full max-w-md space-y-8 py-6">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold">Check your email</h1>
+            <p className="text-sm text-muted-foreground">Enter the {code_length}-character code.</p>
+          </div>
 
           <form
             onSubmit={(event) => {
               event.preventDefault()
               form.post("/session/magic_link")
             }}
+            className="space-y-4"
           >
-            <input
-              type="text"
-              name="code"
-              required
-              autoFocus
-              maxLength={code_length}
-              value={form.data.code}
-              onChange={(event) => form.setData("code", event.target.value)}
-            />
-            <button type="submit" disabled={form.processing || form.data.code.length !== code_length}>
+            <div className="space-y-2">
+              <Label htmlFor="code">Verification code</Label>
+              <Input
+                id="code"
+                type="text"
+                name="code"
+                required
+                autoFocus
+                maxLength={code_length}
+                value={form.data.code}
+                onChange={(event) => form.setData("code", event.target.value)}
+              />
+            </div>
+
+            {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+            <Button type="submit" className="w-full" disabled={form.processing || form.data.code.length !== code_length}>
               {form.processing ? "Verifying..." : "Continue"}
-            </button>
+            </Button>
           </form>
 
-          {error ? <p>{error}</p> : null}
-          <p>This code expires in {expiration_minutes} minutes.</p>
+          <p className="text-center text-sm text-muted-foreground">This code expires in {expiration_minutes} minutes.</p>
         </section>
       )
     }
@@ -705,32 +881,44 @@ after_bundle do
 
   file "app/frontend/pages/onboarding/organization.tsx", <<~TSX
     import { useForm } from "@inertiajs/react"
+    import { Button } from "../../components/ui/button"
+    import { Input } from "../../components/ui/input"
+    import { Label } from "../../components/ui/label"
 
     export default function OrganizationOnboardingPage() {
       const form = useForm({ name: "" })
 
       return (
-        <section>
-          <h1>Create your organization</h1>
+        <section className="mx-auto w-full max-w-md space-y-8 py-6">
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold">Create your organization</h1>
+            <p className="text-sm text-muted-foreground">Create your organization to continue.</p>
+          </div>
+
           <form
             onSubmit={(event) => {
               event.preventDefault()
               form.transform((data) => ({ organization: data }))
               form.post("/onboarding")
             }}
+            className="space-y-4"
           >
-            <input
-              type="text"
-              name="name"
-              required
-              autoFocus
-              placeholder="Acme Inc."
-              value={form.data.name}
-              onChange={(event) => form.setData("name", event.target.value)}
-            />
-            <button type="submit" disabled={form.processing}>
+            <div className="space-y-2">
+              <Label htmlFor="name">Organization name</Label>
+              <Input
+                id="name"
+                type="text"
+                name="name"
+                required
+                autoFocus
+                placeholder="Acme Inc."
+                value={form.data.name}
+                onChange={(event) => form.setData("name", event.target.value)}
+              />
+            </div>
+            <Button type="submit" className="w-full" disabled={form.processing}>
               {form.processing ? "Creating..." : "Create Organization"}
-            </button>
+            </Button>
           </form>
         </section>
       )
@@ -745,8 +933,8 @@ after_bundle do
       const { auth } = usePage<SharedProps>().props
 
       return (
-        <section>
-          <h1>Dashboard</h1>
+        <section className="space-y-2">
+          <h1 className="text-2xl font-semibold">Dashboard</h1>
           <p>Welcome, {auth.user?.name || auth.user?.email_address}.</p>
           <p>Your organization: {auth.organization?.name}.</p>
         </section>
