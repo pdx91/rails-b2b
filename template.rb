@@ -2,6 +2,7 @@
 
 after_bundle do
   run "bundle add inertia_rails"
+  run "bundle add sqlite3 --skip-install"
   run "bundle add nanoid --skip-install"
   run "bundle add name_of_person --skip-install"
   run "bundle install"
