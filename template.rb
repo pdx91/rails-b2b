@@ -86,6 +86,7 @@ after_bundle do
         adapter: sqlite3
   YAML
 
+  append_to_file "Procfile.dev", "jobs: bin/jobs\n"
   append_to_file "Procfile.dev", "mailpit: mailpit\n"
 
   inject_into_file "config/environments/development.rb", <<~RUBY, before: "\nend\n"
