@@ -41,6 +41,50 @@ after_bundle do
       config.solid_cache.connects_to = { database: { writing: :cache } }
   RUBY
 
+  gsub_file "config/database.yml", /^development:\n  <<: \*default\n  database: .*_development\n/, <<~YAML
+    development:
+      primary:
+        <<: *default
+        database: #{app_name}_development
+      queue:
+        <<: *default
+        database: storage/development_queue.sqlite3
+        migrations_paths: db/queue_migrate
+        adapter: sqlite3
+      cache:
+        <<: *default
+        database: storage/development_cache.sqlite3
+        migrations_paths: db/cache_migrate
+        adapter: sqlite3
+      cable:
+        <<: *default
+        database: storage/development_cable.sqlite3
+        migrations_paths: db/cable_migrate
+        adapter: sqlite3
+  YAML
+
+  gsub_file "config/database.yml", /^test:\n  <<: \*default\n  database: .*_test\n/, <<~YAML
+    test:
+      primary:
+        <<: *default
+        database: #{app_name}_test
+      queue:
+        <<: *default
+        database: storage/test_queue.sqlite3
+        migrations_paths: db/queue_migrate
+        adapter: sqlite3
+      cache:
+        <<: *default
+        database: storage/test_cache.sqlite3
+        migrations_paths: db/cache_migrate
+        adapter: sqlite3
+      cable:
+        <<: *default
+        database: storage/test_cable.sqlite3
+        migrations_paths: db/cable_migrate
+        adapter: sqlite3
+  YAML
+
   inject_into_file "config/environments/development.rb", <<~RUBY, before: "\nend\n"
 
     config.action_mailer.delivery_method = :smtp
