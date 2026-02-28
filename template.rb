@@ -1,69 +1,15 @@
 # frozen_string_literal: true
 
-gem "inertia_rails"
-gem "nanoid", require: false
-gem "name_of_person"
-
-gsub_file "Gemfile", /^gem ["']turbo-rails["'].*\n/, ""
-gsub_file "Gemfile", /^gem ["']stimulus-rails["'].*\n/, ""
-
-def migration_number(offset)
-  @migration_start ||= Time.now.utc.strftime("%Y%m%d%H%M%S").to_i
-  (@migration_start + offset).to_s
-end
-
 after_bundle do
-  append_to_file "Gemfile", <<~RUBY
-    gem "vite_rails", "~> 3.0"
-  RUBY
+  run "bundle add inertia_rails"
+  run "bundle add nanoid --skip-install"
+  run "bundle add name_of_person --skip-install"
   run "bundle install"
 
-  run "npm add react react-dom @inertiajs/react"
-  run "npm add -D typescript @types/react @types/react-dom @vitejs/plugin-react @tailwindcss/vite vite-plugin-ruby"
+  gsub_file "Gemfile", /^gem ["']turbo-rails["'].*\n/, ""
+  gsub_file "Gemfile", /^gem ["']stimulus-rails["'].*\n/, ""
 
-  file "config/vite.json", <<~JSON
-    {
-      "all": {
-        "sourceCodeDir": "app/frontend",
-        "watchAdditionalPaths": []
-      },
-      "development": {
-        "autoBuild": true,
-        "publicOutputDir": "vite-dev",
-        "port": 3036
-      },
-      "test": {
-        "autoBuild": true,
-        "publicOutputDir": "vite-test",
-        "port": 3037
-      },
-      "production": {
-        "autoBuild": false,
-        "publicOutputDir": "vite"
-      }
-    }
-  JSON
-
-  file "vite.config.ts", <<~TS
-    import react from "@vitejs/plugin-react"
-    import tailwindcss from "@tailwindcss/vite"
-    import { defineConfig } from "vite"
-    import RubyPlugin from "vite-plugin-ruby"
-
-    export default defineConfig({
-      plugins: [react(), tailwindcss(), RubyPlugin()],
-    })
-  TS
-
-  file "config/initializers/inertia_rails.rb", <<~RUBY
-    InertiaRails.configure do |config|
-      config.version = ViteRuby.digest
-      config.encrypt_history = true
-      config.always_include_errors_hash = true
-      config.use_script_element_for_initial_page = true
-      config.use_data_inertia_head_attribute = true
-    end
-  RUBY
+  run "printf 'y\ny\nreact\ny\n' | bin/rails generate inertia:install --skip-example"
 
   file "config/aws.yml", <<~YAML
     shared: &shared
@@ -200,16 +146,16 @@ after_bundle do
       end
 
       private
-      def generate_code
-        self.code ||= loop do
-          candidate = generate_nanoid(size: CODE_LENGTH)
-          break candidate unless self.class.exists?(code: candidate)
+        def generate_code
+          self.code ||= loop do
+            candidate = generate_nanoid(size: CODE_LENGTH)
+            break candidate unless self.class.exists?(code: candidate)
+          end
         end
-      end
 
-      def set_expiration
-        self.expires_at ||= EXPIRATION_TIME.from_now
-      end
+        def set_expiration
+          self.expires_at ||= EXPIRATION_TIME.from_now
+        end
     end
   RUBY
 
@@ -224,11 +170,11 @@ after_bundle do
       validates :slug, uniqueness: true
 
       private
-      def assign_slug
-        return if slug.present? || name.blank?
+        def assign_slug
+          return if slug.present? || name.blank?
 
-        self.slug = "\#{name.parameterize}-\#{SecureRandom.hex(4)}"
-      end
+          self.slug = "\#{name.parameterize}-\#{SecureRandom.hex(4)}"
+        end
     end
   RUBY
 
@@ -246,17 +192,16 @@ after_bundle do
       extend ActiveSupport::Concern
 
       private
-      def generate_nanoid(size: 12)
-        Nanoid.generate(size:, alphabet: ("a".."z").to_a + ("0".."9").to_a)
-      end
+        def generate_nanoid(size: 12)
+          Nanoid.generate(size:, alphabet: ("a".."z").to_a + ("0".."9").to_a)
+        end
     end
   RUBY
 
   remove_file "app/controllers/application_controller.rb"
   file "app/controllers/application_controller.rb", <<~RUBY
     class ApplicationController < ActionController::Base
-      include Authentication
-      include RequireOrganization
+      include Authentication, RequireOrganization
     end
   RUBY
 
@@ -289,7 +234,7 @@ after_bundle do
       end
 
       private
-      def authenticated?
+        def authenticated?
         resume_session
       end
 
@@ -346,15 +291,15 @@ after_bundle do
       end
 
       private
-      def set_current_organization
-        Current.organization = Current.user&.organizations&.first
-      end
+        def set_current_organization
+          Current.organization = Current.user&.organizations&.first
+        end
 
-      def require_organization
-        return if Current.organization
+        def require_organization
+          return if Current.organization
 
-        redirect_to new_onboarding_path, status: :see_other
-      end
+          redirect_to new_onboarding_path, status: :see_other
+        end
     end
   RUBY
 
@@ -383,32 +328,30 @@ after_bundle do
   RUBY
 
   file "app/controllers/sessions/magic_links_controller.rb", <<~RUBY
-    module Sessions
-      class MagicLinksController < InertiaController
-        allow_unauthenticated_access only: %i[show create]
-        allow_missing_organization only: %i[show create]
-        rate_limit to: 10, within: 15.minutes, only: :create, with: -> { redirect_to session_magic_link_path, alert: "Wait 15 minutes, then try again." }
+    class Sessions::MagicLinksController < InertiaController
+      allow_unauthenticated_access only: %i[show create]
+      allow_missing_organization only: %i[show create]
+      rate_limit to: 10, within: 15.minutes, only: :create, with: -> { redirect_to session_magic_link_path, alert: "Wait 15 minutes, then try again." }
 
-        def show
+      def show
+        render inertia: "auth/verify", props: {
+          code_length: MagicLink::CODE_LENGTH,
+          expiration_minutes: (MagicLink::EXPIRATION_TIME / 60).to_i
+        }
+      end
+
+      def create
+        magic_link = MagicLink.consume(params.require(:code).to_s.strip)
+
+        if magic_link
+          start_new_session_for(magic_link.user)
+          redirect_to new_onboarding_path
+        else
           render inertia: "auth/verify", props: {
             code_length: MagicLink::CODE_LENGTH,
-            expiration_minutes: (MagicLink::EXPIRATION_TIME / 60).to_i
+            expiration_minutes: (MagicLink::EXPIRATION_TIME / 60).to_i,
+            error: "Invalid or expired code. Please try again."
           }
-        end
-
-        def create
-          magic_link = MagicLink.consume(params.require(:code).to_s.strip)
-
-          if magic_link
-            start_new_session_for(magic_link.user)
-            redirect_to new_onboarding_path
-          else
-            render inertia: "auth/verify", props: {
-              code_length: MagicLink::CODE_LENGTH,
-              expiration_minutes: (MagicLink::EXPIRATION_TIME / 60).to_i,
-              error: "Invalid or expired code. Please try again."
-            }
-          end
         end
       end
     end
@@ -435,7 +378,7 @@ after_bundle do
       end
 
       private
-      def organization_params
+        def organization_params
         params.fetch(:organization, {}).permit(:name)
       end
     end
@@ -497,43 +440,6 @@ after_bundle do
       </body>
     </html>
   ERB
-
-  file "app/frontend/entrypoints/inertia.tsx", <<~TSX
-    import { createInertiaApp, type ResolvedComponent } from "@inertiajs/react"
-    import type { ReactNode } from "react"
-    import { StrictMode } from "react"
-    import { createRoot } from "react-dom/client"
-    import { AuthLayout } from "../layouts/auth-layout"
-    import { AppLayout } from "../layouts/app-layout"
-
-    void createInertiaApp({
-      resolve: (name) => {
-        const pages = import.meta.glob<{ default: ResolvedComponent }>("../pages/**/*.tsx", { eager: true })
-        const page = pages[`../pages/\${name}.tsx`]
-
-        if (!page) {
-          throw new Error(`Missing Inertia page component: \${name}.tsx`)
-        }
-
-        if (name.startsWith("auth/") || name.startsWith("onboarding/")) {
-          page.default.layout ??= (pageContent: ReactNode) => <AuthLayout>{pageContent}</AuthLayout>
-        }
-
-        if (name.startsWith("dashboard/")) {
-          page.default.layout ??= (pageContent: ReactNode) => <AppLayout>{pageContent}</AppLayout>
-        }
-
-        return page
-      },
-      setup({ el, App, props }) {
-        createRoot(el).render(
-          <StrictMode>
-            <App {...props} />
-          </StrictMode>,
-        )
-      },
-    })
-  TSX
 
   file "app/frontend/layouts/auth-layout.tsx", <<~TSX
     import type { ReactNode } from "react"
@@ -728,75 +634,11 @@ after_bundle do
     }
   TSX
 
-  file "db/migrate/#{migration_number(1)}_create_users.rb", <<~RUBY
-    class CreateUsers < ActiveRecord::Migration[8.0]
-      def change
-        create_table :users do |t|
-          t.string :first_name
-          t.string :last_name
-          t.string :email_address, null: false
-          t.index :email_address, unique: true
-          t.timestamps
-        end
-      end
-    end
-  RUBY
-
-  file "db/migrate/#{migration_number(2)}_create_sessions.rb", <<~RUBY
-    class CreateSessions < ActiveRecord::Migration[8.0]
-      def change
-        create_table :sessions do |t|
-          t.references :user, null: false, foreign_key: true
-          t.string :ip_address
-          t.string :user_agent
-          t.timestamps
-        end
-      end
-    end
-  RUBY
-
-  file "db/migrate/#{migration_number(3)}_create_magic_links.rb", <<~RUBY
-    class CreateMagicLinks < ActiveRecord::Migration[8.0]
-      def change
-        create_table :magic_links do |t|
-          t.references :user, null: false, foreign_key: true
-          t.string :code, null: false
-          t.string :purpose, null: false
-          t.datetime :expires_at, null: false
-          t.index :code, unique: true
-          t.index :expires_at
-          t.timestamps
-        end
-      end
-    end
-  RUBY
-
-  file "db/migrate/#{migration_number(4)}_create_organizations.rb", <<~RUBY
-    class CreateOrganizations < ActiveRecord::Migration[8.0]
-      def change
-        create_table :organizations do |t|
-          t.string :name, null: false
-          t.string :slug, null: false
-          t.index :slug, unique: true
-          t.timestamps
-        end
-      end
-    end
-  RUBY
-
-  file "db/migrate/#{migration_number(5)}_create_organization_memberships.rb", <<~RUBY
-    class CreateOrganizationMemberships < ActiveRecord::Migration[8.0]
-      def change
-        create_table :organization_memberships do |t|
-          t.references :organization, null: false, foreign_key: true
-          t.references :user, null: false, foreign_key: true
-          t.string :role, null: false, default: "owner"
-          t.index [:organization_id, :user_id], unique: true
-          t.timestamps
-        end
-      end
-    end
-  RUBY
+  rails_command "generate migration CreateUsers first_name:string last_name:string email_address:string"
+  rails_command "generate migration CreateSessions user:references ip_address:string user_agent:string"
+  rails_command "generate migration CreateMagicLinks user:references code:string purpose:string expires_at:datetime"
+  rails_command "generate migration CreateOrganizations name:string slug:string"
+  rails_command "generate migration CreateOrganizationMemberships organization:references user:references role:string"
 
   file "test/models/magic_link_test.rb", <<~RUBY
     require "test_helper"
