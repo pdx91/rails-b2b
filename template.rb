@@ -19,7 +19,7 @@ after_bundle do
   run "bundle install"
 
   run "npm add react react-dom @inertiajs/react"
-  run "npm add -D typescript @types/react @types/react-dom @vitejs/plugin-react @tailwindcss/vite"
+  run "npm add -D typescript @types/react @types/react-dom @vitejs/plugin-react @tailwindcss/vite vite-plugin-ruby"
 
   file "config/vite.json", <<~JSON
     {
