@@ -11,6 +11,7 @@ after_bundle do
 
   run "printf 'y\ny\nreact\ny\n' | bin/rails generate inertia:install --skip-example"
   run "npm add class-variance-authority clsx tailwind-merge radix-ui tw-animate-css @fontsource/inter"
+  run "npm add lucide-react"
 
   file "config/aws.yml", <<~YAML
     shared: &shared
@@ -513,32 +514,91 @@ after_bundle do
     @import "tw-animate-css";
     @import "@fontsource/inter";
 
+    @custom-variant dark (&:is(.dark *));
+
     :root {
       --background: oklch(1 0 0);
       --foreground: oklch(0.147 0.004 49.25);
       --card: oklch(1 0 0);
       --card-foreground: oklch(0.147 0.004 49.25);
+      --popover: oklch(1 0 0);
+      --popover-foreground: oklch(0.147 0.004 49.25);
       --primary: oklch(0.216 0.006 56.043);
       --primary-foreground: oklch(0.985 0.001 106.423);
+      --secondary: oklch(0.97 0.001 106.424);
+      --secondary-foreground: oklch(0.216 0.006 56.043);
       --muted: oklch(0.97 0.001 106.424);
       --muted-foreground: oklch(0.553 0.013 58.071);
+      --accent: oklch(0.97 0.001 106.424);
+      --accent-foreground: oklch(0.216 0.006 56.043);
       --destructive: oklch(0.577 0.245 27.325);
       --border: oklch(0.923 0.003 48.717);
       --input: oklch(0.923 0.003 48.717);
       --ring: oklch(0.709 0.01 56.259);
       --radius: 0.625rem;
+      --sidebar: oklch(0.985 0.001 106.423);
+      --sidebar-foreground: oklch(0.147 0.004 49.25);
+      --sidebar-primary: oklch(0.216 0.006 56.043);
+      --sidebar-primary-foreground: oklch(0.985 0.001 106.423);
+      --sidebar-accent: oklch(0.97 0.001 106.424);
+      --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
+      --sidebar-border: oklch(0.923 0.003 48.717);
+      --sidebar-ring: oklch(0.709 0.01 56.259);
+    }
+
+    .dark {
+      --background: oklch(0.22 0.006 56);
+      --foreground: oklch(0.965 0.002 106);
+      --card: oklch(0.26 0.006 40);
+      --card-foreground: oklch(0.965 0.002 106);
+      --popover: oklch(0.26 0.006 40);
+      --popover-foreground: oklch(0.965 0.002 106);
+      --primary: oklch(0.965 0.002 106);
+      --primary-foreground: oklch(0.22 0.006 56);
+      --secondary: oklch(0.26 0.006 40);
+      --secondary-foreground: oklch(0.965 0.002 106);
+      --muted: oklch(0.26 0.006 40);
+      --muted-foreground: oklch(0.52 0.01 56);
+      --accent: oklch(0.34 0.008 60);
+      --accent-foreground: oklch(0.965 0.002 106);
+      --destructive: oklch(0.62 0.17 25);
+      --border: oklch(1 0 0 / 6%);
+      --input: oklch(0.34 0.008 60);
+      --ring: oklch(0.52 0.01 56);
+      --sidebar: oklch(0.19 0.005 50);
+      --sidebar-foreground: oklch(0.965 0.002 106);
+      --sidebar-primary: oklch(0.965 0.002 106);
+      --sidebar-primary-foreground: oklch(0.22 0.006 56);
+      --sidebar-accent: oklch(0.34 0.008 60);
+      --sidebar-accent-foreground: oklch(0.965 0.002 106);
+      --sidebar-border: oklch(1 0 0 / 6%);
+      --sidebar-ring: oklch(0.52 0.01 56);
     }
 
     @theme inline {
       --font-sans: "Inter", sans-serif;
+      --color-sidebar-ring: var(--sidebar-ring);
+      --color-sidebar-border: var(--sidebar-border);
+      --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+      --color-sidebar-accent: var(--sidebar-accent);
+      --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+      --color-sidebar-primary: var(--sidebar-primary);
+      --color-sidebar-foreground: var(--sidebar-foreground);
+      --color-sidebar: var(--sidebar);
       --color-background: var(--background);
       --color-foreground: var(--foreground);
       --color-card: var(--card);
       --color-card-foreground: var(--card-foreground);
+      --color-popover: var(--popover);
+      --color-popover-foreground: var(--popover-foreground);
       --color-primary: var(--primary);
       --color-primary-foreground: var(--primary-foreground);
+      --color-secondary: var(--secondary);
+      --color-secondary-foreground: var(--secondary-foreground);
       --color-muted: var(--muted);
       --color-muted-foreground: var(--muted-foreground);
+      --color-accent: var(--accent);
+      --color-accent-foreground: var(--accent-foreground);
       --color-destructive: var(--destructive);
       --color-border: var(--border);
       --color-input: var(--input);
@@ -556,11 +616,89 @@ after_bundle do
         @apply font-sans bg-background text-foreground;
       }
 
+      html {
+        @apply font-sans;
+      }
+
       a {
         @apply text-primary no-underline hover:underline;
       }
     }
   CSS
+
+  file "app/frontend/entrypoints/inertia.tsx", <<~TSX
+    import { createInertiaApp, type ResolvedComponent } from "@inertiajs/react"
+    import type { ReactNode } from "react"
+    import { StrictMode } from "react"
+    import { createRoot } from "react-dom/client"
+    import { AuthLayout } from "../layouts/auth-layout"
+    import { AppLayout } from "../layouts/app-layout"
+
+    const darkMediaQuery = window.matchMedia("(prefers-color-scheme: dark)")
+
+    function syncSystemTheme() {
+      document.documentElement.classList.toggle("dark", darkMediaQuery.matches)
+    }
+
+    syncSystemTheme()
+    darkMediaQuery.addEventListener("change", syncSystemTheme)
+
+    void createInertiaApp({
+      resolve: (name) => {
+        const pages = import.meta.glob<{default: ResolvedComponent}>("../pages/**/*.tsx", {
+          eager: true,
+        })
+        const page = pages[`../pages/${name}.tsx`]
+        if (!page) {
+          console.error(`Missing Inertia page component: '${name}.tsx'`)
+        }
+
+        if (name.startsWith("auth/") || name.startsWith("onboarding/") || name.startsWith("connect/")) {
+          page.default.layout ??= (pageContent: ReactNode) => (
+            <AuthLayout>{pageContent}</AuthLayout>
+          )
+        }
+
+        if (name.startsWith("dashboard/")) {
+          page.default.layout ??= (pageContent: ReactNode) => (
+            <AppLayout>{pageContent}</AppLayout>
+          )
+        }
+
+        return page
+      },
+
+      setup({ el, App, props }) {
+        createRoot(el).render(
+          <StrictMode>
+            <App {...props} />
+          </StrictMode>
+        )
+      },
+
+      defaults: {
+        form: {
+          forceIndicesArrayFormatInFormData: false,
+        },
+        future: {
+          useScriptElementForInitialPage: true,
+          useDataInertiaHeadAttribute: true,
+          useDialogForErrorModal: true,
+          preserveEqualProps: true,
+        },
+      },
+    }).catch((error) => {
+      if (document.getElementById("app")) {
+        throw error
+      } else {
+        console.error(
+          "Missing root element.\n\n" +
+          "If you see this error, it probably means you loaded Inertia.js on non-Inertia pages.\n" +
+          'Consider moving <%= vite_typescript_tag "inertia.tsx" %> to the Inertia-specific layout instead.',
+        )
+      }
+    })
+  TSX
 
   file "app/frontend/lib/utils.ts", <<~TS
     import { clsx, type ClassValue } from "clsx"
@@ -641,14 +779,16 @@ after_bundle do
     import type { ReactNode } from "react"
     import { Link } from "@inertiajs/react"
 
-    type Props = { children: ReactNode }
+    type AuthLayoutProps = {
+      children: ReactNode
+    }
 
-    export function AuthLayout({ children }: Props) {
+    export function AuthLayout({ children }: AuthLayoutProps) {
       return (
         <div className="min-h-svh bg-background text-foreground">
           <nav className="border-b border-border">
             <div className="mx-auto flex h-16 max-w-5xl items-center px-4">
-              <Link href="/" className="text-lg font-semibold tracking-tight no-underline">
+              <Link href="/" className="text-lg font-semibold tracking-tight">
                 Playbook
               </Link>
             </div>
@@ -660,23 +800,142 @@ after_bundle do
   TSX
 
   file "app/frontend/layouts/app-layout.tsx", <<~TSX
-    import type { ReactNode } from "react"
-    import { Link, usePage } from "@inertiajs/react"
+    import { type ReactNode, useState } from "react"
+    import { Link, router, usePage } from "@inertiajs/react"
+    import {
+      LayoutDashboard,
+      Map,
+      Bot,
+      CreditCard,
+      Settings,
+      LogOut,
+      PanelLeft,
+      X,
+    } from "lucide-react"
+
     import type { SharedProps } from "../types"
+    import { cn } from "../lib/utils"
 
-    type Props = { children: ReactNode }
+    type AppLayoutProps = {
+      children: ReactNode
+    }
 
-    export function AppLayout({ children }: Props) {
-      const { auth } = usePage<SharedProps>().props
+    const NAV_ITEMS = [
+      { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
+      { icon: Map, label: "Plans", href: "#" },
+      { icon: Bot, label: "Agents", href: "#" },
+      { icon: CreditCard, label: "Subscriptions", href: "#" },
+      { icon: Settings, label: "Settings", href: "#" },
+    ] as const
+
+    function currentPageTitle(url: string) {
+      const match = NAV_ITEMS.find((item) => item.href !== "#" && url.startsWith(item.href))
+      return match?.label ?? "Overview"
+    }
+
+    export function AppLayout({ children }: AppLayoutProps) {
+      const [mobileOpen, setMobileOpen] = useState(false)
+      const { auth, url } = usePage<SharedProps & { url: string }>().props
+      const orgName = auth.organization?.name || "Playbook"
+      const initials = orgName.slice(0, 2).toUpperCase()
+      const pageTitle = currentPageTitle(typeof url === "string" ? url : "/dashboard")
 
       return (
-        <div className="mx-auto w-full max-w-5xl px-4 py-8">
-          <header className="mb-6 flex items-center justify-between border-b border-border pb-4">
-            <strong className="text-lg">{auth.organization?.name || "Dashboard"}</strong>
-            <Link href="/session" method="delete" as="button" className="text-sm">Sign out</Link>
-          </header>
-          {children}
+        <div className="flex min-h-dvh bg-background text-foreground">
+          {mobileOpen && (
+            <div
+              className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+              onClick={() => setMobileOpen(false)}
+            />
+          )}
+
+          <aside
+            className={cn(
+              "fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-border bg-sidebar transition-transform duration-200 lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:translate-x-0",
+              mobileOpen ? "translate-x-0" : "-translate-x-full"
+            )}
+          >
+            <div className="flex shrink-0 items-center gap-2 px-3 pb-4 pt-5">
+              <div className="flex size-6 shrink-0 items-center justify-center rounded-md bg-foreground/10 text-[10px] font-bold">
+                {initials}
+              </div>
+              <span className="truncate text-sm font-medium">{orgName}</span>
+              <button
+                type="button"
+                className="ml-auto lg:hidden"
+                onClick={() => setMobileOpen(false)}
+              >
+                <X className="size-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            <nav className="flex-1 space-y-px p-1.5">
+              {NAV_ITEMS.map((item) => (
+                <NavItem
+                  key={item.label}
+                  icon={item.icon}
+                  label={item.label}
+                  active={item.href !== "#" && (typeof url === "string" ? url : "").startsWith(item.href)}
+                  onClick={() => {
+                    if (item.href !== "#") router.visit(item.href)
+                    setMobileOpen(false)
+                  }}
+                />
+              ))}
+            </nav>
+
+            <div className="border-t border-border p-1.5">
+              <Link href="/session" method="delete" as="button" className="w-full no-underline">
+                <NavItem icon={LogOut} label="Sign out" />
+              </Link>
+            </div>
+          </aside>
+
+          <div className="min-w-0 flex-1">
+            <header className="sticky top-0 z-30 flex h-12 items-center gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-sm">
+              <button
+                type="button"
+                className="lg:hidden"
+                onClick={() => setMobileOpen(true)}
+              >
+                <PanelLeft className="size-4 text-muted-foreground" />
+              </button>
+              <h1 className="text-sm font-medium">{pageTitle}</h1>
+            </header>
+
+            <main className="p-4">
+              {children}
+            </main>
+          </div>
         </div>
+      )
+    }
+
+    function NavItem({
+      icon: Icon,
+      label,
+      active = false,
+      onClick,
+    }: {
+      icon: React.ComponentType<{ className?: string }>
+      label: string
+      active?: boolean
+      onClick?: () => void
+    }) {
+      return (
+        <button
+          type="button"
+          onClick={onClick}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors",
+            active
+              ? "bg-accent font-medium text-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-foreground"
+          )}
+        >
+          <Icon className="size-4 shrink-0" />
+          <span className="truncate">{label}</span>
+        </button>
       )
     }
   TSX
