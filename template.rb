@@ -539,7 +539,7 @@ after_bundle do
     <!DOCTYPE html>
     <html>
       <head>
-        <title data-inertia><%= content_for(:title) || "Rails B2B" %></title>
+        <title data-inertia><%= content_for(:title) || "#{app_name.titleize}" %></title>
         <meta name="viewport" content="width=device-width,initial-scale=1">
         <%= csrf_meta_tags %>
         <%= csp_meta_tag %>
@@ -826,7 +826,7 @@ after_bundle do
           <nav className="border-b border-border">
             <div className="mx-auto flex h-16 max-w-5xl items-center px-4">
               <Link href="/" className="text-lg font-semibold tracking-tight">
-                Playbook
+                #{app_name.titleize}
               </Link>
             </div>
           </nav>
@@ -873,7 +873,7 @@ after_bundle do
     export function AppLayout({ children }: AppLayoutProps) {
       const [mobileOpen, setMobileOpen] = useState(false)
       const { auth, url } = usePage<SharedProps & { url: string }>().props
-      const orgName = auth.organization?.name || "Playbook"
+      const orgName = auth.organization?.name || "#{app_name.titleize}"
       const initials = orgName.slice(0, 2).toUpperCase()
       const pageTitle = currentPageTitle(typeof url === "string" ? url : "/dashboard")
 
