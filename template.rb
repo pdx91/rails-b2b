@@ -2,10 +2,11 @@
 
 after_bundle do
   run "bundle add inertia_rails"
-  run "bundle add sqlite3 --skip-install"
+  run "bundle add good_job --skip-install"
   run "bundle add nanoid --skip-install"
   run "bundle add name_of_person --skip-install"
   run "bundle install"
+  run "bin/rails generate good_job:install"
 
   gsub_file "Gemfile", /^gem ["']turbo-rails["'].*\n/, ""
   gsub_file "Gemfile", /^gem ["']stimulus-rails["'].*\n/, ""
@@ -37,56 +38,10 @@ after_bundle do
   gsub_file "config/application.rb", "class Application < Rails::Application", <<~RUBY.chomp
     class Application < Rails::Application
       config.aws = config_for(:aws)
-      config.active_job.queue_adapter = :solid_queue
-      config.solid_queue.connects_to = { database: { writing: :queue } }
-      config.solid_cache.connects_to = { database: { writing: :cache } }
+      config.active_job.queue_adapter = :good_job
   RUBY
 
-  gsub_file "config/database.yml", /^development:\n  <<: \*default\n  database: .*_development\n/, <<~YAML
-    development:
-      primary:
-        <<: *default
-        database: #{app_name}_development
-      queue:
-        <<: *default
-        database: storage/development_queue.sqlite3
-        migrations_paths: db/queue_migrate
-        adapter: sqlite3
-      cache:
-        <<: *default
-        database: storage/development_cache.sqlite3
-        migrations_paths: db/cache_migrate
-        adapter: sqlite3
-      cable:
-        <<: *default
-        database: storage/development_cable.sqlite3
-        migrations_paths: db/cable_migrate
-        adapter: sqlite3
-  YAML
-
-  gsub_file "config/database.yml", /^test:\n  <<: \*default\n  database: .*_test\n/, <<~YAML
-    test:
-      primary:
-        <<: *default
-        database: #{app_name}_test
-      queue:
-        <<: *default
-        database: storage/test_queue.sqlite3
-        migrations_paths: db/queue_migrate
-        adapter: sqlite3
-      cache:
-        <<: *default
-        database: storage/test_cache.sqlite3
-        migrations_paths: db/cache_migrate
-        adapter: sqlite3
-      cable:
-        <<: *default
-        database: storage/test_cable.sqlite3
-        migrations_paths: db/cable_migrate
-        adapter: sqlite3
-  YAML
-
-  append_to_file "Procfile.dev", "jobs: bin/jobs\n"
+  append_to_file "Procfile.dev", "jobs: bundle exec good_job start\n"
   append_to_file "Procfile.dev", "mailpit: mailpit\n"
 
   inject_into_file "config/environments/development.rb", <<~RUBY, before: "\nend\n"
